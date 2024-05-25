@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const axios = require('axios');
+const { Configuration, OpenAIApi } = require('openai');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -47,7 +48,27 @@ const fetchWebsiteContent = async (url) => {
   }
 };
 
-// Route to accept a website URL and store it in the database
+// Function to summarize content using OpenAI
+const summarizeContent = async (content) => {
+  const configuration = new Configuration({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+  const openai = new OpenAIApi(configuration);
+
+  try {
+    const response = await openai.createCompletion({
+      model: 'text-davinci-003',
+      prompt: `Summarize the following content: ${content}`,
+      max_tokens: 100,
+    });
+    return response.data.choices[0].text.trim();
+  } catch (error) {
+    console.error('Error summarizing content:', error);
+    throw error;
+  }
+};
+
+// Route to accept a website URL, fetch its content, and summarize it
 app.post('/api/submit-url', async (req, res) => {
   const { url } = req.body;
 
@@ -59,9 +80,10 @@ app.post('/api/submit-url', async (req, res) => {
     const newWebsite = new Website({ url });
     await newWebsite.save();
     const content = await fetchWebsiteContent(url);
-    res.status(201).json({ message: 'URL stored successfully', data: newWebsite, content });
+    const summary = await summarizeContent(content);
+    res.status(201).json({ message: 'URL stored and content summarized successfully', data: newWebsite, summary });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to store URL or fetch content' });
+    res.status(500).json({ error: 'Failed to store URL, fetch content, or summarize content' });
   }
 });
 
