@@ -87,6 +87,24 @@ app.post('/api/submit-url', async (req, res) => {
   }
 });
 
+// Route to return the summarized content to the client
+app.get('/api/get-summary/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const website = await Website.findById(id);
+    if (!website) {
+      return res.status(404).json({ error: 'Website not found' });
+    }
+
+    const content = await fetchWebsiteContent(website.url);
+    const summary = await summarizeContent(content);
+    res.status(200).json({ message: 'Content summarized successfully', summary });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch or summarize content' });
+  }
+});
+
 // Basic Route
 app.get('/', (req, res) => {
   res.send('Welcome to the Website Summarizer API');
